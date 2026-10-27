@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit, 2006 to 2026 (scroll)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--fg:#fff;--sans:'Schibsted Grotesk','Helvetica Neue',Helvetica,Arial,system-ui,sans-serif;color-scheme:dark;box-sizing:border-box}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#000;--fg:#fff}}
+:root[data-theme="dark"]{--bg:#000;--fg:#fff}
+*,*::before,*::after{box-sizing:inherit}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+html.embed,html.embed body{overflow:hidden}
+#track{height:520vh}
+.embed #track{height:100vh}
+#stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden}
+#sky{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hud{position:absolute;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap;opacity:0;transition:opacity .5s}
+.hud.on{opacity:1}
+.year{min-height:1.2em;color:#8f8f8f;font:500 .8rem/1.2 var(--sans);letter-spacing:.06em}
+.year.in{animation:yr .5s ease-out both}
+@keyframes yr{from{opacity:0;transform:translateY(.3em)}to{opacity:1;transform:none}}
+.count{margin-top:.15rem;font:700 1.35rem/1.1 var(--sans);letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){.hud{transition:none}.year.in{animation:none}}
+</style>
+</head>
+<body>
+<div id="track">
+<div id="stage">
+<canvas id="sky" role="img" aria-label="A blue globe with pixelated continents, and white squares circling it, one per satellite. As you scroll the count grows: 813 in 2006, 1,419 in 2016 and 16,914 in 2026."></canvas>
+<div class="hud" id="hud">
+<div class="year" id="year"></div>
+<div class="count" id="count">0</div>
+</div>
+</div>
+</div>
+<script>
+
+(function(){
+var cv=document.getElementById('sky'),ctx=cv.getContext('2d');
+var hud=document.getElementById('hud'),yearEl=document.getElementById('year'),cnt=document.getElementById('count');
+var track=document.getElementById('track');
+var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+var T=[
+{y:'2006',f:0,t:813,s:1.2,d:2.4},
+{y:'2016',f:813,t:1419,s:5.2,d:2.0},
+{y:'2026',f:1419,t:16914,s:8.8,d:3.0}
+];
+var TOTAL=14.8,N=16914,OBS=16914;
+
+var tilt=0.4,ct=Math.cos(tilt),st=Math.sin(tilt);
+var wE=6.2832/48;
+
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+var X0=new Float32Array(N),Y0=new Float32Array(N),Z0=new Float32Array(N),IR=new Float32Array(N);
+(function(){
+var r=rng(11),incs=[53,53,53,70,97.6,97.6,86.4,43,28.5,63,51.6];
+for(var k=0;k<N;k++){
+var p=k<813?0.42:(k<1419?0.15:(k<OBS?0.02:0.005)),rad,inc;
+if(r()<p){rad=1.6+(r()-0.5)*0.03;inc=(r()-0.5)*0.1;}
+else{rad=1.08+r()*0.2;inc=(incs[Math.floor(r()*incs.length)]+(r()-0.5)*3)*Math.PI/180;}
+var om=r()*6.2832,th=r()*6.2832;
+var a=Math.cos(th),b=Math.cos(inc)*Math.sin(th),c=Math.sin(inc)*Math.sin(th),co=Math.cos(om),so=Math.sin(om);
+X0[k]=rad*(co*a-so*b);Y0[k]=rad*(so*a+co*b);Z0[k]=rad*c;IR[k]=1/rad;}
+})();
+
+var tile=document.createElement('canvas');tile.width=tile.height=256;
+(function(){
+var tc=tile.getContext('2d'),ti=tc.createImageData(256,256),t32=new Uint32Array(ti.data.buffer),gr=rng(77);
+for(var i=0;i<65536;i++){var v=gr()<0.5?255:0,a=(gr()*34)|0;t32[i]=((a<<24)|(v<<16)|(v<<8)|v)>>>0;}
+tc.putImageData(ti,0,0);
+})();
+var pat;
+var LANDSTR="-168,66 -164,68.6 -156,71.3 -141,69.7 -128,70.2 -115,68.3 -108,68.6 -98,70 -95,72 -91,69 -85,69.7 -82,68.5 -86,66 -88,64 -94,61.5 -93.5,58.5 -88,56.5 -82.5,55.2 -82.2,52.8 -79.8,51.3 -78.8,54 -77,58 -78.2,62.3 -73,62 -70,60.5 -65,60.3 -61.8,56.8 -57,54 -56,52 -60,50.2 -66,50.2 -70,47.3 -65,48.8 -64.5,46.5 -66,45.2 -67,44.7 -70,43.7 -70.5,41.8 -74,40.5 -75.5,38 -76,36.5 -77.5,34.5 -79.5,33 -81,31 -80,27 -80.3,25.2 -81.8,26.3 -82.8,28 -83.3,29.8 -85.5,29.7 -88,30.3 -89.5,29.2 -91.5,29.5 -94,29.5 -97,27.5 -97.5,25 -97.8,22 -96,19 -94.5,18.2 -91,18.7 -90.5,21 -87,21.5 -87.5,18 -88.3,16 -83.5,15.2 -83.5,11 -81,8.8 -79,9.5 -77.4,8.6 -78.2,7.5 -80,7.3 -83,8.3 -85.7,10 -87.5,13 -92,14.5 -96,15.7 -100,17 -105.5,19.8 -105.5,22.5 -109.5,23.5 -112,25.5 -115,29 -117,32.5 -120.5,34.5 -122.5,37.5 -124.2,40.5 -124,46 -124.7,48.4 -123,49 -127,50.5 -130.5,54.5 -134,58 -140,59.8 -146,60.8 -151.5,59.2 -154,57.5 -158,58.5 -162,59.8 -165,62.5 -162,64.5 -166,64.6|-77.4,8.6 -75,11 -72,12 -71,10.5 -68,10.5 -62,10.7 -60,8.5 -57,6 -52,5 -50,1.5 -50,0 -48,-1 -44,-2.5 -40,-3 -35,-5.5 -35,-9 -37.5,-12 -39,-14.5 -39,-18 -41,-22 -44,-23 -48,-25.5 -48.5,-28 -53,-33.5 -55,-35 -58,-34.5 -57,-37.5 -62,-39 -65,-41 -64.5,-43 -67,-46 -66,-48 -69,-51.5 -68.5,-53.8 -71,-54 -74,-52 -75.5,-47 -73.5,-42 -73.7,-37 -71.5,-30 -70.5,-24 -70.2,-18.5 -75,-15 -77,-12 -79.5,-7.5 -81,-5 -80,-2 -80.5,0 -78.5,1.5 -77.5,4|-17,21 -16,24 -13,27.5 -10,29.5 -9.5,32 -6,35.8 -2,35 3,36.8 10,37.3 11,35 10,33.5 15,32.5 19.5,30.5 20,32.5 23,32.7 29,31 32.5,31.2 32.5,29.9 33,27.5 35,24 37,21 39,16 43,12.5 44,10.5 51,11.8 51,10 48,5 44,1 41,-2 39.5,-5 39,-8 40.5,-11 40.5,-15 37,-18 35,-20 35,-24 32.8,-26 32.8,-28.5 30,-31.5 27,-33.5 22,-34 19,-34.5 18,-32 16.5,-28.5 15,-26 14.5,-22 12.5,-18 11.8,-15 13.5,-12 12.5,-6 9,-1 9.5,3.5 6,4.3 4,6.3 1,6 -4,5 -8,4.5 -11,6.5 -13,8.5 -15,11 -16.7,12.5 -17.5,14.7 -16.5,19|-9.5,43 -9,38.7 -8.8,37 -6.5,36.5 -5.5,36 -2,36.7 0,38.8 0.5,40.5 3,41.8 3.3,43.2 6,43.1 9,44.3 10.5,43.5 12.5,41.7 15.5,40 15.8,38 16.5,38.5 16.8,39.6 16.3,41 18.5,40.2 16,41.9 14,42.7 12.3,44.5 12.4,45.5 13.7,45.6 15,44.2 17.5,42.8 19.5,41.5 19.6,40.2 21,38.5 21.7,36.8 23,36.5 24,38 23.5,40 26,40.7 26.2,40.1 26.7,38.5 27.5,37 29,36.5 32,36.2 34.7,36.7 36,36.5 35.8,35 35,33 34.5,31.5 34.9,29.5 35,28 36.5,26 39,22 41,18 42.8,15 43.5,12.8 45,12.8 49,14 52,16 55,17.5 57.5,19 59.8,22.5 58.5,23.7 56.4,26.3 56,26.2 54.5,24.3 52,24 51.5,25.2 51,26.1 50,26.8 48.7,28.5 48,29.8 49,30.2 50.5,29.3 52,27.5 54.5,26.5 56.5,27 57.2,25.7 60,25.3 62.5,25.2 66.5,25.4 67.5,23.7 70.5,21 72.8,20.5 72.8,16 74.2,13 76.2,9.5 77.5,8 78.2,8.8 79.8,10.3 80.2,13 80,15.5 82,16.8 84.5,19 87,21.5 88,22 90,22 91.8,22.5 92,20.5 94,18 94.3,16 97.5,16.5 98.5,13 98.3,10 99.5,7.8 101,6.8 103.5,4 104.2,1.5 103.5,1.3 101.5,2.8 100.5,5.5 100,7 100,9.5 99,10.5 99.5,13.5 100.5,13.6 101,12.8 102.5,11.8 103.5,10.5 104.8,8.8 106.5,9.5 107.5,10.8 109,12.5 109.3,15 108,16.5 106.5,18.5 105.7,19.6 106.7,20.7 108,21.5 110,21.3 110.5,20.3 111,21.5 113.5,22.2 116,22.8 118,24.5 119.8,26 121.5,28.5 122,30 121.8,31.7 120.8,32.5 119.5,34.5 120.5,36.8 122.5,37.2 120.5,37.8 118.8,37.5 118,39 121,40.8 122.3,40.4 121.6,39 124,39.8 125,38 126.5,37 126.4,34.7 127.5,34.5 129.3,35.5 129.3,37 128,38.6 127.5,39.8 129.8,41 131,42.5 133,43 135.5,43.8 138,46.5 140,48.5 141,52 143,59.3 150,59.5 155.5,57.5 156.5,51 158,52 160,54.5 162,56.5 163,59.5 166,60 170,60 173,61.3 177,62.5 180,65 180,68.9 170,70 160,69.7 150,71.5 140,72.7 130,71 125,73.5 113,73.7 110,76.5 104,77.7 100,76.5 98,73.5 87,74 80,73.5 72,72.7 68.5,71.5 66.5,69.5 60,69.5 55.5,68.5 50,68 44,68.5 41,67 40.5,64.5 37,66.5 34,66.8 32.5,69.5 30,70.2 25,71 20,70 15.5,68.5 12,66 9,63.5 5.5,62 5,60 5.5,58.8 8,58 10.5,59.5 11,58 12.8,56 14.5,55.4 16,56.2 17,57.5 18.5,59.5 17,60.5 17.5,62.5 21,64.5 24,65.8 25.5,65.3 22.5,63.5 21.5,61.5 23,60 27,60.5 30,60.2 29.5,59.7 28,59.3 24,59.4 23.5,58.3 24.2,57.2 21.2,56.8 21,55.2 19.5,54.5 18.5,54.7 14,54 12,54.2 10.9,54 10.7,55.5 9.9,57.2 8.2,56.7 8.6,54 8.8,53.6 7,53.5 5,53 4.5,52 3.5,51.3 1.7,51 1.5,50.1 0.2,49.8 -1.5,49.7 -1.8,48.7 -4.5,48.5 -4.7,48 -3,47.5 -2.2,47.2 -1.2,46 -1.3,44.5 -1.8,43.4 -4,43.4 -8,43.7|-73,78 -67,80.5 -50,82 -30,83.4 -20,81.5 -18,77 -20,74 -22,70.5 -27,68.5 -32,68 -39,65.5 -43,60 -48,61 -51,64 -54,67 -53,70 -56,72 -58,75.5 -68,76.5|-5.5,50 1.5,51 1.8,52.7 0,53.5 -0.5,54.5 -2,55.8 -1.7,57.5 -3,58.6 -5,58.6 -6,57 -5.5,55.5 -3,54.8 -3,53.4 -4.7,52.5 -5.2,51.8 -3.2,51.4 -4.5,50.5|-10,51.7 -6,52 -6,54 -7.5,55.3 -10,54.2|-24,65.5 -22,66.4 -16,66.5 -13.5,65 -15,64.3 -19,63.4 -22.5,63.8|130.9,34 132.5,35.5 135.5,35.7 137,37 139.5,38.5 140,40.5 141.5,41.4 142,39.5 141,37 140.8,35.7 139.8,35 137,34.6 135.2,33.6 133,34|140,42 141.5,45.4 145.5,43.3 143,42|130,31.3 131.5,31.4 131.8,33.5 130,33.6 129.8,32.5|95.3,5.5 98,4 104,-1.5 106,-5.8 103,-5 100,-2 97,2|105.2,-6.8 108,-6.5 112.5,-6.8 114.5,-7.8 110,-8.2 106,-7.2|109,1.5 111,2.2 114,4.5 117,7 119,5.2 117.5,1 116,-3.8 114,-4 111,-3 110,-1.5|119.5,-5.5 120.3,-1 122,1 125,1.5 123,-1 122,-4 121,-5|131,-0.8 135,-3.5 138,-1.8 141,-2.6 145,-5 148,-8.2 150.5,-10.5 147,-10 143.5,-9 141,-9.2 138,-8.2 137,-5.5 133.5,-4|120.5,18.5 122.2,18.4 122,14 124,13 121,13.7 120,16|122,7 123.5,8.5 126.2,7.5 126,6 124,6.2|113,-22 114.5,-21.7 118,-20 122,-18 125,-14.7 128,-15 129.5,-14.8 131,-12 133,-11.5 136.5,-12 136.8,-15 139.5,-17.5 141.5,-17 142.5,-10.8 144,-14.5 146,-18.8 149,-21 150.5,-23.5 153,-25.5 153.5,-28.5 153,-31.5 151,-34 150,-37.5 147,-38.3 144,-38.5 141,-38 139.5,-36 138,-35 137.5,-33 135.5,-34.5 134,-32.5 131,-31.5 126,-32.3 124,-33.5 120,-34 116,-35 115,-33.5 115.7,-31.5 114.5,-28 113.5,-26|144.7,-40.7 148.3,-40.9 148,-43 146,-43.6 145,-42|172.7,-34.5 175,-37 178.5,-37.7 177,-39.5 175.5,-41.6 174.8,-41.3 175,-39.5 173.8,-39.2 174.5,-37|172.7,-40.5 174,-41.7 173,-43.5 171,-44.5 170.5,-46 167,-46 166.5,-45.5 168.5,-44 171,-41.8|49.3,-12 50.5,-15.5 49.5,-17.5 47.5,-24.5 45,-25.5 43.5,-22.5 44.5,-17 47,-15|79.8,9.5 81.8,7.5 81.2,6 80,6|-85,22 -82,23 -77,21.5 -74.2,20.2 -77.5,19.9 -80,21.6|-74.4,18.5 -71.5,19.9 -68.5,18.7 -71.4,17.7|52,71.5 57,70.7 68,76.8 62,76.5 55,74|-80,63.5 -72,64.5 -62,66.5 -67,69.5 -72,71.5 -80,73.5 -90,72.5 -83,70.5 -76,68|-118,69 -108,69 -100,69.5 -101,72.5 -110,73 -117,71|-90,76.5 -75,78.5 -62,81.5 -75,83 -90,82 -92,79|-59.3,47.7 -53,46.7 -52.7,49 -55.5,51.5 -59,48.5|121,25 122,25 121,22 120,23|108.7,19.2 111,20 110.5,18.2|142,54.3 143.5,52 143,46 142,46|11,79 18,80.5 27,80 22,77.5 15,77|-180,69 -175,67.8 -170,66.1 -172,64.5 -177,65 -180,65.5|12.5,38 15.5,38.2 15,36.8|8.2,41 9.7,41 9.5,39 8.4,39|-180,-77 -160,-78 -150,-76 -135,-74 -120,-74 -105,-73 -92,-73.5 -80,-73 -72,-72 -68,-69 -64,-66 -60,-63.5 -57,-63.3 -62,-66 -66,-70 -62,-74 -58,-76 -45,-78 -30,-78 -15,-72 -5,-70.5 10,-70 25,-69.5 40,-68 50,-66.5 60,-67.5 70,-69 80,-67 95,-66 110,-66 125,-66.5 140,-66.5 150,-69.5 160,-70.5 170,-72 180,-71 180,-90 -180,-90";
+var SEASSTR="28,41.2 28,43.5 30,45.5 33,46 34.5,44.7 37.5,44.5 40,43.5 41.5,41.7 38,41 35,42 32,41.8 29,41.2|47,45 49.5,46.5 53,45.5 53,42 53.8,40 53,37 50.5,37 49,38.5 49,40.5 47.5,43";
+var MASK=new Uint8Array(1024*512);
+(function(){
+var c=document.createElement('canvas');c.width=1024;c.height=512;
+var x=c.getContext('2d');
+x.fillStyle='#000';x.fillRect(0,0,1024,512);
+function poly(str,col){
+x.fillStyle=col;
+str.split('|').forEach(function(pp){
+x.beginPath();
+pp.trim().split(/\s+/).forEach(function(q,i){
+var a=q.split(','),X=(+a[0]+180)/360*1024,Y=(90-a[1])/180*512;
+if(i)x.lineTo(X,Y);else x.moveTo(X,Y);});
+x.closePath();x.fill();});}
+poly(LANDSTR,'#fff');poly(SEASSTR,'#000');
+var d=x.getImageData(0,0,1024,512).data;
+for(var i=0;i<MASK.length;i++)MASK[i]=d[i*4];
+})();
+var lc=document.createElement('canvas'),lctx=lc.getContext('2d');
+var limg,lpix,LPI,LU,LR0,LR1,LFV,landDirty=true,lastLand=0;
+var CW=480,CH=240,CG=new Uint8Array(CW*CH);
+(function(){
+for(var cj=0;cj<CH;cj++)for(var ci=0;ci<CW;ci++){
+var x0=Math.floor(ci*1024/CW),x1=Math.floor((ci+1)*1024/CW),y0=Math.floor(cj*512/CH),y1=Math.floor((cj+1)*512/CH),sum=0,n=0;
+for(var y=y0;y<y1;y++)for(var x=x0;x<x1;x++){sum+=MASK[y*1024+x];n++;}
+CG[cj*CW+ci]=(sum/(n*255))>0.4?1:0;}
+})();
+var LANDCOL=((178<<24)|(235<<16)|(140<<8)|96)>>>0;
+function landPrep(){
+var LR=Math.ceil(2*R);
+lc.width=LR;lc.height=LR;
+limg=lctx.createImageData(LR,LR);lpix=new Uint32Array(limg.data.buffer);
+var rl=LR/2,cnt=0,i,j,tot=LR*LR;
+var idx=new Int32Array(tot),u0=new Float32Array(tot),r0=new Int32Array(tot);
+for(j=0;j<LR;j++)for(i=0;i<LR;i++){
+var x=(i+0.5-rl)/rl,y=(rl-(j+0.5))/rl,rr=x*x+y*y;
+if(rr>1)continue;
+var z=Math.sqrt(1-rr),px=x,py=-y*st+z*ct,pz=y*ct+z*st;
+var lon=Math.atan2(py,-px),lat=Math.asin(pz>1?1:(pz<-1?-1:pz));
+var u=(lon/6.2832+0.5)*CW,v=(0.5-lat/3.14159)*CH,vj=v|0;
+if(vj>CH-1)vj=CH-1;if(vj<0)vj=0;
+idx[cnt]=j*LR+i;u0[cnt]=u;r0[cnt]=vj*CW;cnt++;}
+LPI=idx.subarray(0,cnt);LU=u0.subarray(0,cnt);LR0=r0.subarray(0,cnt);
+landDirty=true;}
+function landUpdate(e){
+var shift=e/6.2832*CW,n=LPI.length,k;
+lpix.fill(0);
+for(k=0;k<n;k++){
+var u=LU[k]+shift;u-=CW*Math.floor(u/CW);
+var ci=u|0;if(ci>=CW)ci=0;
+if(CG[LR0[k]+ci])lpix[LPI[k]]=LANDCOL;}
+lctx.putImageData(limg,0,0);}
+var AX=new Float32Array(OBS),AY=new Float32Array(OBS),AZ=new Float32Array(OBS),SK=new Float32Array(OBS);
+(function(){
+var r=rng(21);
+for(var k=0;k<OBS;k++){
+var ex=(r()+r()+r()-1.5)*0.1,ey=(r()+r()+r()-1.5)*0.1,l=1/Math.sqrt(ex*ex+ey*ey+1);
+AX[k]=ex*l;AY[k]=ey*l;AZ[k]=l;SK[k]=1+(r()-0.5)*0.12;}
+})();
+var GV=new Uint32Array(256);for(var gi=0;gi<256;gi++)GV[gi]=((255<<24)|(gi<<16)|(gi<<8)|gi)>>>0;
+var dc=document.createElement('canvas'),dctx=dc.getContext('2d');
+var W,H,dpr,cx,cy,R,Rp,side,half,dsz,ox,oy,dotpx,img,buf,LQ=2;
+function layout(){
+dpr=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;
+cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+if(W<700){cx=W/2;cy=H*0.40;R=Math.min(W*0.28,H*0.2);}
+else{cx=W/2;cy=H*0.44;R=Math.min(W*0.24,H*0.27);}
+R=Math.max(R,50);Rp=R*LQ;
+side=Math.ceil(3.4*Rp/2)*2;half=side/2;dsz=side*dpr/LQ;
+ox=Math.round(cx*dpr-dsz/2);oy=Math.round(cy*dpr-dsz/2);
+dc.width=side;dc.height=side;
+img=dctx.createImageData(side,side);buf=new Uint32Array(img.data.buffer);
+dotpx=Math.max(2,Math.round(Math.max(1.15,R/200)*LQ*3.4));pat=ctx.createPattern(tile,'repeat');landPrep();hud.style.top=Math.min(H-72,cy+R*1.32+14)+'px';}
+function globe(spin,gi){
+var c=cx*dpr,d=cy*dpr,r=R*dpr;
+var lw=1.2*dpr;
+ctx.beginPath();ctx.arc(c,d,r,0,6.2832);ctx.fillStyle='#002FA7';ctx.fill();
+if(landDirty||Math.abs(spin-lastLand)*162.97>0.3){landUpdate(spin);lastLand=spin;landDirty=false;}
+ctx.imageSmoothingEnabled=false;ctx.drawImage(lc,c-r,d-r,2*r,2*r);ctx.imageSmoothingEnabled=true;
+ctx.save();ctx.beginPath();ctx.arc(c,d,r,0,6.2832);ctx.clip();
+var gx=(gi*7919)%256,gy=(gi*104729)%256;
+ctx.scale(dpr,dpr);ctx.translate(gx,gy);ctx.fillStyle=pat;
+ctx.fillRect((c-r)/dpr-gx,(d-r)/dpr-gy,2*r/dpr,2*r/dpr);ctx.restore();
+ctx.lineWidth=lw;ctx.strokeStyle='rgba(255,255,255,0.35)';
+function line(f,n){
+ctx.beginPath();var pen=false;
+for(var i=0;i<=n;i++){var p=f(i/n),sy=-p[1]*st+p[2]*ct,dd=p[1]*ct+p[2]*st;
+if(dd>=0){var x=c+p[0]*r,y=d-sy*r;if(pen)ctx.lineTo(x,y);else ctx.moveTo(x,y);pen=true;}else pen=false;}
+ctx.stroke();}
+[-60,-30,0,30,60].forEach(function(la){var l=la*Math.PI/180;
+line(function(t){var a=t*6.2832;return[Math.cos(l)*Math.cos(a),Math.cos(l)*Math.sin(a),Math.sin(l)];},120);});
+for(var m=0;m<12;m++){(function(m){var l0=m*Math.PI/6+spin;
+line(function(t){var la=-1.5708+t*3.1416;return[Math.cos(la)*Math.cos(l0),Math.cos(la)*Math.sin(l0),Math.sin(la)];},60);})(m);}
+ctx.beginPath();ctx.arc(c,d,r,0,6.2832);ctx.strokeStyle='#5978c6';ctx.lineWidth=lw;ctx.stroke();}
+function drawDots(n,spin){
+buf.fill(0);
+var s=dotpx,lim=side-s,h=half,rp=Rp,hs=s/2,n1=n<OBS?n:OBS,k,yy,xx,j;
+for(k=0;k<n1;k++){
+var x0=X0[k],y0=Y0[k],z0=Z0[k],th=spin*SK[k],cc=Math.cos(th),ss=Math.sin(th);
+var ax=AX[k],ay=AY[k],az=AZ[k],dp=(ax*x0+ay*y0+az*z0)*(1-cc);
+var px=x0*cc+(ay*z0-az*y0)*ss+ax*dp,py=y0*cc+(az*x0-ax*z0)*ss+ay*dp,pz=z0*cc+(ax*y0-ay*x0)*ss+az*dp;
+var d=py*ct+pz*st,sy=-py*st+pz*ct;
+if(d<0&&px*px+sy*sy<1)continue;
+var x=(h+px*rp-hs)|0,y=(h-sy*rp-hs)|0;
+if(x<0||y<0||x>=lim||y>=lim)continue;
+var q=(d*IR[k]+1)*0.625;q=q<0?0:(q>1?1:q);q=q*q*(3-2*q);
+var g=((0.3+0.7*q)*255)|0,val=GV[g],i=y*side+x;
+for(yy=0;yy<s;yy++){j=i+yy*side;for(xx=0;xx<s;xx++){if((buf[j+xx]&255)<g)buf[j+xx]=val;}}}
+if(n>OBS){
+var s2=Math.max(2,Math.round(s*0.25)),lim2=side-s2,hs2=s2/2,cs=Math.cos(spin),sn=Math.sin(spin);
+for(k=OBS;k<n;k++){
+var u0=X0[k],v0=Y0[k],w0=Z0[k];
+var qx=u0*cs-v0*sn,qy=u0*sn+v0*cs;
+var dd=qy*ct+w0*st,sy2=-qy*st+w0*ct;
+if(dd<0&&qx*qx+sy2*sy2<1)continue;
+var x2=(h+qx*rp-hs2)|0,y2=(h-sy2*rp-hs2)|0;
+if(x2<0||y2<0||x2>=lim2||y2>=lim2)continue;
+var q2=(dd*IR[k]+1)*0.625;q2=q2<0?0:(q2>1?1:q2);q2=q2*q2*(3-2*q2);
+var g2=((0.3+0.7*q2)*166)|0,val2=GV[g2],i2=y2*side+x2;
+for(yy=0;yy<s2;yy++){j=i2+yy*side;for(xx=0;xx<s2;xx++){if((buf[j+xx]&255)<g2)buf[j+xx]=val2;}}}}
+dctx.putImageData(img,0,0);}
+
+function ease(p){return p<0.5?4*p*p*p:1-Math.pow(-2*p+2,3)/2;}
+function stateAt(t){
+var n=0,idx=-1;
+for(var i=0;i<T.length;i++){var s=T[i];
+if(t>=s.s){idx=i;var p=Math.min(1,(t-s.s)/s.d);n=s.f+(s.t-s.f)*ease(p);}}
+return{n:Math.round(n),idx:idx};}
+
+var tNow=0,tt=0,raf=0,dirty=true,lastN=-1,lastIdx=-9,lastOn=null;
+var embed=/[?&]mode=embed/.test(location.search);
+if(embed)document.documentElement.classList.add('embed');
+function notify(s){
+if(window.parent!==window)window.parent.postMessage({type:'orbit-state',year:s.idx>=0?T[s.idx].y:null,count:s.n,stage:s.idx},'*');}
+function render(){
+var s=stateAt(tNow);
+if(s.n!==lastN){cnt.textContent=s.n.toLocaleString('en-US').replace(/,/g,'\u00a0');lastN=s.n;dirty=true;notify(s);}
+var on=tNow>=0.7;
+if(on!==lastOn){hud.classList.toggle('on',on);lastOn=on;}
+if(s.idx!==lastIdx){
+if(s.idx<0){yearEl.textContent='';yearEl.classList.remove('in');}
+else{yearEl.textContent=T[s.idx].y;yearEl.classList.remove('in');void yearEl.offsetWidth;yearEl.classList.add('in');}
+lastIdx=s.idx;notify(s);}
+if(dirty){
+var sp=tNow*wE;
+ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,cv.width,cv.height);
+globe(-0.3*sp,Math.floor(tNow*18));
+drawDots(s.n,sp);
+ctx.drawImage(dc,ox,oy,dsz,dsz);
+dirty=false;}}
+function tick(){
+raf=0;
+var prev=tNow;
+tNow=reduce?tt:tNow+(tt-tNow)*0.18;
+if(Math.abs(tt-tNow)<0.002)tNow=tt;
+if(tNow!==prev)dirty=true;
+render();
+if(tNow!==tt)raf=requestAnimationFrame(tick);}
+function setProgress(p){
+p=p<0?0:(p>1?1:p);tt=p*TOTAL;
+if(!raf)raf=requestAnimationFrame(tick);}
+function onScroll(){
+var b=track.getBoundingClientRect(),len=b.height-window.innerHeight;
+setProgress(len>0?-b.top/len:0);}
+window.addEventListener('message',function(e){
+if(window.parent!==window&&e.source!==window.parent)return;
+var d=e.data;
+if(d&&d.type==='orbit-progress'&&typeof d.value==='number')setProgress(d.value);});
+if(!embed)window.addEventListener('scroll',onScroll,{passive:true});
+window.addEventListener('resize',function(){layout();dirty=true;if(!embed)onScroll();});
+window.orbit={setProgress:setProgress,timeline:T,total:TOTAL};
+layout();
+if(!embed){var b0=track.getBoundingClientRect(),l0=b0.height-window.innerHeight;tt=(l0>0?Math.max(0,Math.min(1,-b0.top/l0)):0)*TOTAL;}
+tNow=tt;
+render();
+})();
+</script>
+</body>
+</html>
